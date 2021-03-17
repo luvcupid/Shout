@@ -34,11 +34,19 @@ class Channel {
         return Channel(cSession: cSession, cChannel: cChannel)
     }
     
-    static func createForSCP(cSession: OpaquePointer, fileSize: Int64, remotePath: String, permissions: FilePermissions) throws -> Channel {
+    static func createForSCPSend(cSession: OpaquePointer, fileSize: Int64, remotePath: String, permissions: FilePermissions) throws -> Channel {
         guard let cChannel = libssh2_scp_send64(cSession, remotePath, permissions.rawValue, fileSize, 0, 0) else {
             throw SSHError.mostRecentError(session: cSession, backupMessage: "libssh2_scp_send64 failed")
         }
         return Channel(cSession: cSession, cChannel: cChannel)
+    }
+    
+    static func createForSCPRecv(cSession: OpaquePointer, remotePath: String) throws -> (channel: Channel, fileInfo: libssh2_struct_stat) {
+        var fileInfo = libssh2_struct_stat()
+        guard let cChannel = libssh2_scp_recv2(cSession, remotePath, &fileInfo) else {
+            throw SSHError.mostRecentError(session: cSession, backupMessage: "libssh2_scp_recv2 failed")
+        }
+        return (Channel(cSession: cSession, cChannel: cChannel), fileInfo)
     }
     
     private init(cSession: OpaquePointer, cChannel: OpaquePointer) {

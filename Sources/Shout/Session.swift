@@ -71,8 +71,12 @@ class Session {
         return try Channel.createForCommand(cSession: cSession)
     }
 
-    func openSCPChannel(fileSize: Int64, remotePath: String, permissions: FilePermissions) throws -> Channel {
-        return try Channel.createForSCP(cSession: cSession, fileSize: fileSize, remotePath: remotePath, permissions: permissions)
+    func openSCPSendChannel(fileSize: Int64, remotePath: String, permissions: FilePermissions) throws -> Channel {
+        return try Channel.createForSCPSend(cSession: cSession, fileSize: fileSize, remotePath: remotePath, permissions: permissions)
+    }
+    
+    func openSCPRecvChannel(remotePath: String) throws -> (channel: Channel, fileInfo: libssh2_struct_stat) {
+        return try Channel.createForSCPRecv(cSession: cSession, remotePath: remotePath)
     }
     
     func openAgent() throws -> Agent {

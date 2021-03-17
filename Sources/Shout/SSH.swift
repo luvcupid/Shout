@@ -180,7 +180,7 @@ public class SSH {
                 throw SSHError.genericError("couldn't open file at \(localURL)")
         }
         
-        let channel = try session.openSCPChannel(fileSize: Int64(fileSize), remotePath: remotePath, permissions: permissions)
+        let channel = try session.openSCPSendChannel(fileSize: Int64(fileSize), remotePath: remotePath, permissions: permissions)
         
         inputStream.open()
         defer { inputStream.close() }
@@ -209,6 +209,53 @@ public class SSH {
                 case .error(let error):
                     throw error
                 }
+            }
+        }
+        
+        try channel.sendEOF()
+        try channel.waitEOF()
+        try channel.close()
+        try channel.waitClosed()
+        
+        return channel.exitStatus()
+    }
+    
+    /// Download a file from the remote server to the local device
+    ///
+    /// - Parameters:
+    ///   - remotePath: the location on the remote server whether the file should be download
+    ///   - localPath: the local path to write to
+    /// - Throws: SSHError if local path can't be write or download fails
+    @discardableResult
+    public func recvFile(remotePath: String, localPath: String) throws -> Int32 {
+        guard let outputStream = OutputStream(toFileAtPath: localPath, append: true) else {
+            throw SSHError.genericError("couldn't init `OutputStream`")
+        }
+        
+        outputStream.open()
+        defer { outputStream.close() }
+        
+        let recv = try session.openSCPRecvChannel(remotePath: remotePath)
+        let channel  = recv.channel
+        let fileInfo = recv.fileInfo
+        
+        var bytesWritten: Int = 0
+        
+        while bytesWritten < fileInfo.st_size {
+            switch channel.readData() {
+            case .data(let data):
+                let bytes = [UInt8](data)
+                let count = bytes.count
+                
+                let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: count)
+                pointer.initialize(from: bytes, count: count)
+                
+                bytesWritten = outputStream.write(pointer, maxLength: count)
+                pointer.deallocate()
+            case .eagain, .done:
+                break
+            case .error(let error):
+                throw error
             }
         }
         
