@@ -275,4 +275,8 @@ public class SSH {
         return try session.openSftp()
     }
     
+    /// Terminate the session
+    public func disconnect() {
+        session.disconnect()
+    }
 }
